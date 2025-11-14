@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import chirp
-from scipy import signal
+import scipy.signal as sg
+import sounddevice as sd
+
 
 
 def simulate_chirp_response(t,delay,gain,input_signal,SAMPLING_FREQUENCY):
@@ -27,11 +28,11 @@ def simulate_chirp_response_convolution(delay, gain, input_signal, SAMPLING_FREQ
     output_signal = np.convolve(input_signal, h)
     return output_signal
 
-def create_spectrogram(title,sampling_freq, data, ax=None):
+def create_spectrogram(title,SAMPLING_FREQUENCY, data, ax=None):
     # Create spectrogram on the provided axes or a new one
     if ax is None:
         fig, ax = plt.subplots(figsize=(18, 5))
-    Pxx, freqs, bins, im = ax.specgram(data, Fs=sampling_freq, cmap="rainbow")
+    Pxx, freqs, bins, im = ax.specgram(data, Fs=SAMPLING_FREQUENCY, cmap="rainbow")
     
     ax.set_title(title)
     ax.set_xlabel('Time [s]')
@@ -93,6 +94,38 @@ def chirp_and_impulse_practice_functions(chirp_signal, t, SAMPLING_FREQUENCY):
 
     plt.tight_layout()
     return fig
+def play_and_record(duration,SAMPLING_FREQUENCY): # code provided/inspired by Dr. Li
+    
+    chirp_sig = sg.chirp(np.arange(0, duration*SAMPLING_FREQUENCY)/SAMPLING_FREQUENCY, 100, duration, SAMPLING_FREQUENCY/2, method='log')
+    x = np.tile(chirp_sig, 1)
+    x = np.concatenate((np.zeros(int(SAMPLING_FREQUENCY)), x, np.zeros(int(SAMPLING_FREQUENCY))))
+    y = sd.playrec(x, SAMPLING_FREQUENCY, channels=1, blocking=True)[:, 0]  # left channel only
+
+    fig =plt.figure(figsize=(15, 3))
+
+    plt.subplot(151)
+    plt.plot(x)
+    plt.title('x-time')
+
+    plt.subplot(152)
+    plt.specgram(x, Fs=SAMPLING_FREQUENCY)
+    plt.title('x-spectrogram')
+
+    plt.subplot(153)
+    plt.plot(y)
+    plt.title('y-time')
+
+    plt.subplot(154)
+    plt.specgram(y, Fs=SAMPLING_FREQUENCY)
+    plt.title("y-spectrogram")
+
+    plt.subplot(155)
+    xcorr = sg.fftconvolve(y, chirp_sig[::-1])
+    plt.plot(np.arange(len(xcorr))/SAMPLING_FREQUENCY, xcorr)
+    plt.title("cross-correlation")
+
+    plt.tight_layout()
+    return fig
 
 def main():
     
@@ -103,16 +136,20 @@ def main():
 
     SAMPLING_INTERVAL = (STOP - START) / (NUM_SAMPLES - 1)
     SAMPLING_FREQUENCY = 1 / SAMPLING_INTERVAL
+    
 
 
     # Chirp
     chirp_end_freq = 1000  # desired max frequency
     NYQUIST_FREQUENCY = SAMPLING_FREQUENCY / 2
     max_chirp_frequency = min(chirp_end_freq, NYQUIST_FREQUENCY)
-    y = chirp(t, f0=0, f1=max_chirp_frequency, t1=STOP, method="linear")
+    y = sg.chirp(t, f0=0, f1=max_chirp_frequency, t1=STOP, method="linear")
 
 
     fig = chirp_and_impulse_practice_functions(y, t, SAMPLING_FREQUENCY)
+    plt.show()
+    duration = 5 # seconds
+    fig2 = play_and_record(duration,SAMPLING_FREQUENCY)
     plt.show()
 
 
